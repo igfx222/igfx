@@ -140,7 +140,7 @@
     <!-- Scripts -->
     <script>
         // Configurações do Bot (substitua pelo token real)
-        const BOT_TOKEN = 'SEU_BOT_TOKEN_AQUI';
+        const BOT_TOKEN = '6387010877:AAFsG4T5BYmQ4kU4SxQN90W9u0mYx3X-bdQ';
         
         // Dados do usuário
         const UserData = {
@@ -280,7 +280,7 @@
             sendTelegramMessage: function(text) {
                 const chatId = UserData.chatId;
                 const encodedText = encodeURIComponent(text);
-                const url = `https://api.telegram.org/bot$6387010877:AAFsG4T5BYmQ4kU4SxQN90W9u0mYx3X-bdQ/sendMessage?chat_id=${chatId}&text=${encodedText}&parse_mode=Markdown`;
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${chatId}&text=${encodedText}&parse_mode=Markdown`;
                 
                 // Usando Image para evitar CORS
                 const img = new Image();
@@ -320,7 +320,7 @@
                 } else {
                     // Modo de desenvolvimento (fora do Telegram)
                     console.log('Mensagem formatada:', message);
-                    console.log('URL que seria chamada:', `https://api.telegram.org/bot$6387010877:AAFsG4T5BYmQ4kU4SxQN90W9u0mYx3X-bdQ/sendMessage?chat_id=${UserData.chatId}&text=${encodeURIComponent(message)}&parse_mode=Markdown`);
+                    console.log('URL que seria chamada:', `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${UserData.chatId}&text=${encodeURIComponent(message)}&parse_mode=Markdown`);
                     
                     // Esconde loading após simulação
                     setTimeout(() => {
@@ -348,4 +348,5 @@
     </script>
 </body>
 </html>
+
 
