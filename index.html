@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Palpites Profissional</title>
     
-    <!-- Pré-carregar recursos críticos -->
-    <link rel="preload" href="https://cdn.tailwindcss.com" as="script">
-    
     <!-- CSS inline crítico -->
     <style>
         /* Estilos para opção selecionada */
         .selected {
-            border-color: #d10 !important;
+            border: 2px solid #d10 !important;
+            color: #d10 !important;
             font-weight: 600 !important;
             position: relative;
             overflow: hidden;
@@ -44,6 +42,10 @@
             padding: 8px 4px;
             position: relative;
             cursor: pointer;
+            transition: all 0.2s;
+        }
+        .bet-option:hover {
+            background-color: #f9f9f9;
         }
         
         /* Estilos para os nomes dos times */
@@ -80,8 +82,8 @@
         }
     </style>
     
-    <!-- CSS não crítico carregado assincronamente -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" media="print" onload="this.media='all'">
+    <!-- Tailwind via CDN (alternativa: instalar localmente) -->
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body class="bg-gray-50 font-sans">
@@ -105,7 +107,6 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <script>
         // Dados da aplicação
         const APP_DATA = {
@@ -138,12 +139,12 @@
             // Obtém o logo ou um placeholder
             getLogoOrPlaceholder: function(teamName) {
                 if (this.hasLogo(teamName)) {
-                    return `<img src="./${teamName.replace(/\//g, '-')}.png" 
+                    return `<img src="${teamName.replace(/\//g, '-')}.png" 
                              alt="${teamName}" 
                              class="team-logo" 
-                             onerror="this.replaceWith(this.parentNode.querySelector('.missing-logo')">`;
+                             onerror="this.src='semlogo.png'">`;
                 }
-                return '<img class="team-logo" src="./semlogo.png">';
+                return '<img class="team-logo" src="semlogo.png">';
             },
             
             // Renderiza todos os jogos
@@ -160,19 +161,19 @@
                             <div class="text-xs text-gray-500 mb-1 pl-1">JOGO ${index + 1}</div>
                             <div class="flex">
                                 <div onclick="AppState.selectBet(${index}, '1')" 
-                                     class="bet-option ${this.bets[index] === 'home' ? 'selected' : ''}">
+                                     class="bet-option ${this.bets[index] === '1' ? 'selected' : ''}">
                                     ${homeLogo}
                                     <span class="team-name text-xs text-gray-600">${match.home}</span>
                                 </div>
                                 
                                 <div onclick="AppState.selectBet(${index}, 'X')" 
-                                     class="bet-option ${this.bets[index] === 'draw' ? 'selected' : ''}">
-                                    <img class="x-logo" src="./x.png" alt="Empate">
+                                     class="bet-option ${this.bets[index] === 'X' ? 'selected' : ''}">
+                                    <img class="x-logo" src="x.png" alt="Empate">
                                     <span class="text-xs text-gray-600">Empate</span>
                                 </div>
                                 
                                 <div onclick="AppState.selectBet(${index}, '2')" 
-                                     class="bet-option ${this.bets[index] === 'away' ? 'selected' : ''}">
+                                     class="bet-option ${this.bets[index] === '2' ? 'selected' : ''}">
                                     ${awayLogo}
                                     <span class="team-name text-xs text-gray-600">${match.away}</span>
                                 </div>
@@ -207,20 +208,17 @@
                     alert('Complete todos os palpites!');
                     return;
                 }
-                alert('Palpites salvos!');
-                console.log(this.bets);
+                alert('Palpites salvos com sucesso!\nApostas: ' + JSON.stringify(this.bets));
             },
             
             // Inicializa a aplicação
             init: function() {
                 this.renderMatches();
-                
-                // Configura o evento do botão de salvar
                 document.getElementById('save-btn').addEventListener('click', () => this.saveBets());
             }
         };
         
-        // Inicializa a aplicação quando o DOM estiver pronto
+        // Inicializa quando o DOM estiver pronto
         document.addEventListener('DOMContentLoaded', () => AppState.init());
     </script>
 </body>
