@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Palpites Profissional</title>
     
+    <!-- Script do Telegram WebApp -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
     <!-- CSS inline crítico -->
     <style>
         /* Estilos para opção selecionada */
@@ -137,23 +140,31 @@
         </div>
     </div>
 
-    <!-- Scripts -->
     <script>
-        // Configurações do Bot (substitua pelo token real)
+        // Configurações do Bot (com seu token inserido)
         const BOT_TOKEN = '6387010877:AAFsG4T5BYmQ4kU4SxQN90W9u0mYx3X-bdQ';
+        
+        // Verifica se está no Telegram MiniApp
+        const isTelegramApp = () => {
+            return window.Telegram && Telegram.WebApp && Telegram.WebApp.initData;
+        };
         
         // Dados do usuário
         const UserData = {
             chatId: null,
             firstName: null,
+            isTelegram: false,
+            
             init: function() {
-                if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+                this.isTelegram = isTelegramApp();
+                
+                if (this.isTelegram) {
                     const user = Telegram.WebApp.initDataUnsafe.user;
                     this.chatId = user.id;
                     this.firstName = user.first_name || 'Usuário';
+                    Telegram.WebApp.expand();
                 } else {
-                    // Fallback para desenvolvimento
-                    this.chatId = 'CHAT_ID_FALLBACK';
+                    this.chatId = 'DEV_MODE_' + Math.floor(Math.random() * 10000);
                     this.firstName = 'Usuário';
                 }
             }
@@ -253,7 +264,7 @@
                     'w-full bg-gray-600 text-white font-semibold py-3 rounded text-sm uppercase tracking-wider';
             },
             
-            // Formata a mensagem com os palpites
+            // Formata os palpites para mensagem
             formatBetsMessage: function() {
                 const now = new Date();
                 const bilheteId = now.getTime();
@@ -276,23 +287,30 @@
                 return message;
             },
             
-            // Envia mensagem via API do Telegram (método JSONP)
+            // Mostra o loading
+            showLoading: function() {
+                document.getElementById('loading-overlay').style.display = 'flex';
+            },
+            
+            // Esconde o loading
+            hideLoading: function() {
+                document.getElementById('loading-overlay').style.display = 'none';
+            },
+            
+            // Envia mensagem via API do Telegram
             sendTelegramMessage: function(text) {
-                const chatId = UserData.chatId;
-                const encodedText = encodeURIComponent(text);
-                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${chatId}&text=${encodedText}&parse_mode=Markdown`;
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${UserData.chatId}&text=${encodeURIComponent(text)}&parse_mode=Markdown`;
                 
-                // Usando Image para evitar CORS
-                const img = new Image();
-                img.src = url;
+                // Método 1: Usando Image para evitar CORS
+                new Image().src = url;
                 
-                // Fallback para script tag se necessário
+                // Método 2: Fallback com script
                 setTimeout(() => {
                     const script = document.createElement('script');
                     script.src = url;
                     document.body.appendChild(script);
-                    document.body.removeChild(script);
-                }, 100);
+                    setTimeout(() => document.body.removeChild(script), 100);
+                }, 50);
             },
             
             // Salva as apostas
@@ -302,30 +320,25 @@
                     return;
                 }
                 
-                // Mostra loading
-                document.getElementById('loading-overlay').style.display = 'flex';
-                
-                // Formata a mensagem
+                this.showLoading();
                 const message = this.formatBetsMessage();
                 
-                // Se estiver no Telegram WebApp
-                if (window.Telegram?.WebApp) {
-                    // Envia via API do Telegram
+                if (UserData.isTelegram) {
                     this.sendTelegramMessage(message);
                     
-                    // Fecha o WebApp após 2 segundos
+                    // Fecha o WebApp após 1.5 segundos
                     setTimeout(() => {
+                        this.hideLoading();
                         Telegram.WebApp.close();
-                    }, 2000);
+                    }, 1500);
                 } else {
-                    // Modo de desenvolvimento (fora do Telegram)
-                    console.log('Mensagem formatada:', message);
-                    console.log('URL que seria chamada:', `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${UserData.chatId}&text=${encodeURIComponent(message)}&parse_mode=Markdown`);
+                    // Modo de desenvolvimento
+                    console.log('Mensagem que seria enviada:', message);
+                    console.log('URL da API:', `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${UserData.chatId}&text=${encodeURIComponent(message)}&parse_mode=Markdown`);
                     
-                    // Esconde loading após simulação
                     setTimeout(() => {
-                        document.getElementById('loading-overlay').style.display = 'none';
-                        alert('Palpites salvos com sucesso!\n\n(No Telegram, seria enviado automaticamente)');
+                        this.hideLoading();
+                        alert('Mensagem enviada com sucesso (modo desenvolvimento)');
                     }, 1500);
                 }
             },
@@ -335,11 +348,6 @@
                 UserData.init();
                 this.renderMatches();
                 document.getElementById('save-btn').addEventListener('click', () => this.saveBets());
-                
-                // Expande o WebApp se estiver no Telegram
-                if (window.Telegram?.WebApp) {
-                    Telegram.WebApp.expand();
-                }
             }
         };
         
@@ -348,5 +356,3 @@
     </script>
 </body>
 </html>
-
-
