@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Palpites Profissional</title>
     
+    <!-- Script do Telegram WebApp -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
     <!-- CSS inline crítico -->
     <style>
         /* Estilos para opção selecionada */
@@ -80,19 +83,44 @@
             font-weight: bold;
             color: #666;
         }
+        
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.7);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            color: white;
+            font-size: 18px;
+        }
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #d10;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
     
-    <!-- Tailwind via CDN (alternativa: instalar localmente) -->
+    <!-- Tailwind via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body class="bg-gray-50 font-sans">
     <div class="container mx-auto px-3 pb-24 max-w-md">
-        <!-- Cabeçalho -->
-        <header class="bg-black text-white font-bold text-center py-3 px-2 mb-4 text-sm uppercase tracking-wider">
-            Arena do AZ - Loteca 1207
-        </header>
-        
         <!-- Lista de jogos -->
         <main id="matches" class="space-y-1">
             <!-- Os jogos serão inseridos aqui via JavaScript -->
@@ -104,10 +132,37 @@
                 SALVAR BILHETE
             </button>
         </footer>
+        
+        <!-- Loading overlay (inicialmente oculto) -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <div>Processando seu bilhete...</div>
+        </div>
     </div>
 
     <!-- Scripts -->
     <script>
+        // Dados do usuário
+        const UserData = {
+            chatId: null,
+            firstName: null,
+            loadTime: null,
+            
+            init: function() {
+                // Coleta dados do Telegram WebApp se disponível
+                if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+                    const user = Telegram.WebApp.initDataUnsafe.user;
+                    this.chatId = user.id;
+                    this.firstName = user.first_name;
+                } else {
+                    // Fallback para quando não estiver no Telegram
+                    this.chatId = Math.floor(Math.random() * 1000000);
+                    this.firstName = "Usuário";
+                }
+                this.loadTime = new Date();
+            }
+        };
+
         // Dados da aplicação
         const APP_DATA = {
             matches: [
@@ -202,19 +257,78 @@
                     'w-full bg-gray-600 text-white font-semibold py-3 rounded text-sm uppercase tracking-wider';
             },
             
+            // Formata os palpites para mensagem
+            formatBetsMessage: function() {
+                const now = new Date();
+                const bilheteId = now.getTime();
+                const dateStr = now.toLocaleString('pt-BR');
+                
+                let message = `📋 *Bilhete #${bilheteId}*\n`;
+                message += `👤 ${UserData.firstName}\n`;
+                message += `📅 ${dateStr}\n\n`;
+                message += `🔮 *Palpites:*\n`;
+                
+                this.bets.forEach((bet, index) => {
+                    const match = APP_DATA.matches[index];
+                    let choice = '';
+                    
+                    if (bet === '1') choice = 'Casa 🏠';
+                    else if (bet === 'X') choice = 'Empate ⚖️';
+                    else if (bet === '2') choice = 'Fora 🚌';
+                    
+                    message += `${match.home} x ${match.away} 👉 ${choice}\n`;
+                });
+                
+                return message;
+            },
+            
             // Salva as apostas
             saveBets: function() {
                 if (this.bets.some(bet => bet === null)) {
                     alert('Complete todos os palpites!');
                     return;
                 }
-                alert('Palpites salvos com sucesso!\nApostas: ' + JSON.stringify(this.bets));
+                
+                // Mostra loading
+                document.getElementById('loading-overlay').style.display = 'flex';
+                
+                // Simula processamento (substitua por lógica real)
+                setTimeout(() => {
+                    const message = this.formatBetsMessage();
+                    
+                    // Esconde loading
+                    document.getElementById('loading-overlay').style.display = 'none';
+                    
+                    // Se estiver no Telegram, envia os dados
+                    if (window.Telegram?.WebApp) {
+                        Telegram.WebApp.sendData(JSON.stringify({
+                            message: message,
+                            chatId: UserData.chatId,
+                            timestamp: new Date().getTime()
+                        }));
+                    } else {
+                        // Fallback para fora do Telegram
+                        alert(message.replace(/\*/g, ''));
+                        console.log('Dados do bilhete:', {
+                            user: UserData.firstName,
+                            chatId: UserData.chatId,
+                            bets: this.bets,
+                            message: message
+                        });
+                    }
+                }, 1500);
             },
             
             // Inicializa a aplicação
             init: function() {
+                UserData.init();
                 this.renderMatches();
                 document.getElementById('save-btn').addEventListener('click', () => this.saveBets());
+                
+                // Expande o WebApp se estiver no Telegram
+                if (window.Telegram?.WebApp) {
+                    Telegram.WebApp.expand();
+                }
             }
         };
         
