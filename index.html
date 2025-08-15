@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palpites Profissional</title>
+    
+    <!-- Pré-carregar recursos críticos -->
+    <link rel="preload" href="https://cdn.tailwindcss.com" as="script">
+    
+    <!-- CSS inline crítico -->
+    <style>
+        /* Estilos para opção selecionada */
+        .selected {
+            border-color: #d10 !important;
+            font-weight: 600 !important;
+            position: relative;
+            overflow: hidden;
+        }
+        .selected * {
+            color: #d10 !important;
+        }
+        .selected::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 12px;
+            height: 12px;
+            background-color: #d10;
+        }
+        
+        /* Estilos para as opções de aposta */
+        .bet-option {
+            width: 33.33%;
+            height: 110px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            border: 1px solid #ddd;
+            margin: 0;
+            padding: 8px 4px;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        /* Estilos para os nomes dos times */
+        .team-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+            padding: 0 2px;
+        }
+        
+        /* Estilos para logos */
+        .team-logo, .x-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            margin-bottom: 8px;
+        }
+        
+        /* Placeholder para logos ausentes */
+        .missing-logo {
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+            border-radius: 50%;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #666;
+        }
+    </style>
+    
+    <!-- CSS não crítico carregado assincronamente -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" media="print" onload="this.media='all'">
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <div class="container mx-auto px-3 pb-24 max-w-md">
+        <!-- Cabeçalho -->
+        <header class="bg-black text-white font-bold text-center py-3 px-2 mb-4 text-sm uppercase tracking-wider">
+            Arena do AZ - Loteca 1207
+        </header>
+        
+        <!-- Lista de jogos -->
+        <main id="matches" class="space-y-1">
+            <!-- Os jogos serão inseridos aqui via JavaScript -->
+        </main>
+        
+        <!-- Rodapé com botão de ação -->
+        <footer class="fixed bottom-0 left-0 right-0 bg-white p-3 shadow-lg border-t border-gray-300">
+            <button id="save-btn" disabled class="w-full bg-gray-600 text-white font-semibold py-3 rounded text-sm uppercase tracking-wider">
+                SALVAR BILHETE
+            </button>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Dados da aplicação
+        const APP_DATA = {
+            matches: [
+                { home: "Flamengo/RJ", away: "Palmeiras/SP" },
+                { home: "Corinthians/SP", away: "São Paulo/SP" },
+                { home: "Vasco/RJ", away: "Botafogo/RJ" },
+                { home: "Grêmio/RS", away: "Internacional/RS" },
+                { home: "Cruzeiro/MG", away: "Atlético/MG" },
+                { home: "Santos/SP", away: "Fluminense/RJ" },
+                { home: "Bahia/BA", away: "Vitória/BA" }
+            ],
+            
+            teamsWithLogos: [
+                "Flamengo/RJ", "Palmeiras/SP", "Corinthians/SP", "São Paulo/SP",
+                "Vasco/RJ", "Botafogo/RJ", "Grêmio/RS", "Internacional/RS",
+                "Cruzeiro/MG", "Atlético/MG", "Santos/SP", "Fluminense/RJ", "Vitória/BA"
+            ]
+        };
+        
+        // Estado da aplicação
+        const AppState = {
+            bets: Array(APP_DATA.matches.length).fill(null),
+            
+            // Verifica se um time tem logo
+            hasLogo: function(teamName) {
+                return APP_DATA.teamsWithLogos.includes(teamName);
+            },
+            
+            // Obtém o logo ou um placeholder
+            getLogoOrPlaceholder: function(teamName) {
+                if (this.hasLogo(teamName)) {
+                    return `<img src="./${teamName.replace(/\//g, '-')}.png" 
+                             alt="${teamName}" 
+                             class="team-logo" 
+                             onerror="this.replaceWith(this.parentNode.querySelector('.missing-logo')">`;
+                }
+                return '<img class="team-logo" src="./semlogo.png">';
+            },
+            
+            // Renderiza todos os jogos
+            renderMatches: function() {
+                const matchesContainer = document.getElementById('matches');
+                let html = '';
+                
+                APP_DATA.matches.forEach((match, index) => {
+                    const homeLogo = this.getLogoOrPlaceholder(match.home);
+                    const awayLogo = this.getLogoOrPlaceholder(match.away);
+                    
+                    html += `
+                        <div class="mb-3">
+                            <div class="text-xs text-gray-500 mb-1 pl-1">JOGO ${index + 1}</div>
+                            <div class="flex">
+                                <div onclick="AppState.selectBet(${index}, '1')" 
+                                     class="bet-option ${this.bets[index] === 'home' ? 'selected' : ''}">
+                                    ${homeLogo}
+                                    <span class="team-name text-xs text-gray-600">${match.home}</span>
+                                </div>
+                                
+                                <div onclick="AppState.selectBet(${index}, 'X')" 
+                                     class="bet-option ${this.bets[index] === 'draw' ? 'selected' : ''}">
+                                    <img class="x-logo" src="./x.png" alt="Empate">
+                                    <span class="text-xs text-gray-600">Empate</span>
+                                </div>
+                                
+                                <div onclick="AppState.selectBet(${index}, '2')" 
+                                     class="bet-option ${this.bets[index] === 'away' ? 'selected' : ''}">
+                                    ${awayLogo}
+                                    <span class="team-name text-xs text-gray-600">${match.away}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                
+                matchesContainer.innerHTML = html;
+                this.updateSaveButton();
+            },
+            
+            // Seleciona uma aposta
+            selectBet: function(matchIndex, betType) {
+                this.bets[matchIndex] = betType;
+                this.renderMatches();
+            },
+            
+            // Atualiza o estado do botão de salvar
+            updateSaveButton: function() {
+                const saveBtn = document.getElementById('save-btn');
+                const allBetsMade = this.bets.every(bet => bet !== null);
+                
+                saveBtn.disabled = !allBetsMade;
+                saveBtn.className = allBetsMade ? 
+                    'w-full bg-red-600 text-white font-semibold py-3 rounded text-sm uppercase tracking-wider' :
+                    'w-full bg-gray-600 text-white font-semibold py-3 rounded text-sm uppercase tracking-wider';
+            },
+            
+            // Salva as apostas
+            saveBets: function() {
+                if (this.bets.some(bet => bet === null)) {
+                    alert('Complete todos os palpites!');
+                    return;
+                }
+                alert('Palpites salvos!');
+                console.log(this.bets);
+            },
+            
+            // Inicializa a aplicação
+            init: function() {
+                this.renderMatches();
+                
+                // Configura o evento do botão de salvar
+                document.getElementById('save-btn').addEventListener('click', () => this.saveBets());
+            }
+        };
+        
+        // Inicializa a aplicação quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', () => AppState.init());
+    </script>
+</body>
+</html>
