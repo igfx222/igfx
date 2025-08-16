@@ -136,12 +136,12 @@
         <!-- Loading overlay -->
         <div id="loading-overlay" class="loading-overlay">
             <div class="spinner"></div>
-            <div>Enviando seus palpites...</div>
+            <div>Enviando seu bilhete...</div>
         </div>
     </div>
 
     <script>
-        // Configurações do Bot (com seu token inserido)
+        // Configurações do Bot
         const BOT_TOKEN = '6387010877:AAFsG4T5BYmQ4kU4SxQN90W9u0mYx3X-bdQ';
         
         // Verifica se está no Telegram MiniApp
@@ -264,24 +264,29 @@
                     'w-full bg-gray-600 text-white font-semibold py-3 rounded text-sm uppercase tracking-wider';
             },
             
+            // Formata a mensagem de confirmação
+            formatConfirmationMessage: function() {
+                return `👉 O seu bilhete foi salvo com sucesso, ${UserData.firstName}! Você será notificado dos resultados por aqui, ok? Segue abaixo o seu bilhete:\n\n${this.formatBetsMessage()}`;
+            },
+            
             // Formata os palpites para mensagem
             formatBetsMessage: function() {
                 const now = new Date();
                 const bilheteId = now.getTime();
                 const dateStr = now.toLocaleString('pt-BR');
                 
-                let message = `📋 *Bilhete #${bilheteId}*\n`;
-                message += `👤 *${UserData.firstName}*\n`;
-                message += `📅 ${dateStr}\n\n`;
-                message += `🔮 *Palpites:*\n\n`;
+                let message = `📋 *Bilhete n: ${bilheteId}*\n`;
+                message += `👤 Nome: *${UserData.firstName}*\n`;
+                message += `📅 Data/Hora: ${dateStr}\n\n`;
+                message += `🎯 *Palpites:*\n\n`;
                 
                 this.bets.forEach((bet, index) => {
                     const match = APP_DATA.matches[index];
-                    const emoji = bet === '1' ? '🏠' : (bet === 'X' ? '⚖️' : '🚌');
+                    //const emoji = bet === '1' ? '🏠' : (bet === 'X' ? '⚖️' : '🚌');
                     const choice = bet === '1' ? 'Casa' : (bet === 'X' ? 'Empate' : 'Fora');
                     
-                    message += `*Jogo ${index + 1}:* ${match.home} x ${match.away}\n`;
-                    message += `👉 ${emoji} *${choice}*\n\n`;
+                    message += `*Jogo ${index + 1} 👉* ${match.home} x ${match.away}\n`;
+                    message += `Escolha 👉 *${choice}*\n\n`;
                 });
                 
                 return message;
@@ -298,19 +303,22 @@
             },
             
             // Envia mensagem via API do Telegram
-            sendTelegramMessage: function(text) {
+            sendTelegramMessage: function(text, callback) {
                 const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${UserData.chatId}&text=${encodeURIComponent(text)}&parse_mode=Markdown`;
                 
-                // Método 1: Usando Image para evitar CORS
-                new Image().src = url;
-                
-                // Método 2: Fallback com script
-                setTimeout(() => {
-                    const script = document.createElement('script');
-                    script.src = url;
-                    document.body.appendChild(script);
-                    setTimeout(() => document.body.removeChild(script), 100);
-                }, 50);
+                // Usando fetch com tratamento de erro
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Erro ao enviar mensagem');
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (callback) callback(true);
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        if (callback) callback(false);
+                    });
             },
             
             // Salva as apostas
@@ -321,24 +329,26 @@
                 }
                 
                 this.showLoading();
-                const message = this.formatBetsMessage();
+                const fullMessage = this.formatConfirmationMessage();
                 
                 if (UserData.isTelegram) {
-                    this.sendTelegramMessage(message);
-                    
-                    // Fecha o WebApp após 1.5 segundos
-                    setTimeout(() => {
+                    this.sendTelegramMessage(fullMessage, (success) => {
                         this.hideLoading();
-                        Telegram.WebApp.close();
-                    }, 1500);
+                        if (success) {
+                            alert('Bilhete registrado com sucesso!');
+                            Telegram.WebApp.close();
+                        } else {
+                            alert('Erro ao enviar bilhete. Tente novamente.');
+                        }
+                    });
                 } else {
                     // Modo de desenvolvimento
-                    console.log('Mensagem que seria enviada:', message);
-                    console.log('URL da API:', `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${UserData.chatId}&text=${encodeURIComponent(message)}&parse_mode=Markdown`);
+                    console.log('Mensagem que seria enviada:', fullMessage);
+                    console.log('URL da API:', `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${UserData.chatId}&text=${encodeURIComponent(fullMessage)}&parse_mode=Markdown`);
                     
                     setTimeout(() => {
                         this.hideLoading();
-                        alert('Mensagem enviada com sucesso (modo desenvolvimento)');
+                        alert('Bilhete registrado com sucesso! (Modo desenvolvimento)');
                     }, 1500);
                 }
             },
