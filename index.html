@@ -1,1 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palpites Profissional</title>
+    
+    <!-- Script do Telegram WebApp -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- CSS inline crítico -->
+    <style>
+        /* Estilos para opção selecionada */
+        .selected {
+            border: 2px solid #d10 !important;
+            color: #d10 !important;
+            font-weight: 600 !important;
+            position: relative;
+            overflow: hidden;
+        }
+        .selected * {
+            color: #d10 !important;
+        }
+        .selected::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 12px;
+            height: 12px;
+            background-color: #d10;
+        }
+        
+        /* Estilos para as opções de aposta */
+        .bet-option {
+            width: 33.33%;
+            height: 110px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            border: 1px solid #ddd;
+            margin: 0;
+            padding: 8px 4px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .bet-option:hover {
+            background-color: #f9f9f9;
+        }
+        
+        /* Estilos para os nomes dos times */
+        .team-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+            padding: 0 2px;
+        }
+        
+        /* Estilos para logos */
+        .team-logo, .x-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            margin-bottom: 8px;
+        }
+        
+        /* Placeholder para logos ausentes */
+        .missing-logo {
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+            border-radius: 50%;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #666;
+        }
+        
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.7);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            color: white;
+            font-size: 18px;
+        }
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #d10;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
+    <!-- Tailwind via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <div class="container mx-auto px-3 pb-24 max-w-md">
+        <!-- Lista de jogos -->
+        <main id="matches" class="space-y-1">
+            <!-- Os jogos serão inseridos aqui via JavaScript -->
+        </main>
+        
+        <!-- Rodapé com botão de ação -->
+        <footer class="fixed bottom-0 left-0 right-0 bg-white p-3 shadow-lg border-t border-gray-300">
+            <button id="save-btn" disabled class="w-full bg-gray-600 text-white font-semibold py-3 rounded text-sm uppercase tracking-wider">
+                SALVAR BILHETE
+            </button>
+        </footer>
+        
+        <!-- Loading overlay -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <div>Enviando seu bilhete...</div>
+        </div>
+    </div>
+
+    <script>
+        // Configurações do Bot
+        const BOT_TOKEN = '6387010877:AAFsG4T5BYmQ4kU4SxQN90W9u0mYx3X-bdQ';
+        
+        // Verifica se está no Telegram MiniApp
+        const isTelegramApp = () => {
+            return window.Telegram && Telegram.WebApp && Telegram.WebApp.initData;
+        };
+        
+        // Dados do usuário
+        const UserData = {
+            chatId: null,
+            firstName: null,
+            isTelegram: false,
+            
+            init: function() {
+                this.isTelegram = isTelegramApp();
+                
+                if (this.isTelegram) {
+                    const user = Telegram.WebApp.initDataUnsafe.user;
+                    this.chatId = user.id;
+                    this.firstName = user.first_name || 'Usuário';
+                    Telegram.WebApp.expand();
+                } else {
+                    this.chatId = 'DEV_MODE_' + Math.floor(Math.random() * 10000);
+                    this.firstName = 'Usuário';
+                }
+            }
+        };
+
+        // Dados da aplicação
+        const APP_DATA = {
+            matches: [
+                { home: "Flamengo/RJ", away: "Palmeiras/SP" },
+                { home: "Corinthians/SP", away: "São Paulo/SP" },
+                { home: "Vasco/RJ", away: "Botafogo/RJ" },
+                { home: "Grêmio/RS", away: "Internacional/RS" },
+                { home: "Cruzeiro/MG", away: "Atlético/MG" },
+                { home: "Santos/SP", away: "Fluminense/RJ" },
+                { home: "Bahia/BA", away: "Vitória/BA" }
+            ],
+            
+            teamsWithLogos: [
+                "Flamengo/RJ", "Palmeiras/SP", "Corinthians/SP", "São Paulo/SP",
+                "Vasco/RJ", "Botafogo/RJ", "Grêmio/RS", "Internacional/RS",
+                "Cruzeiro/MG", "Atlético/MG", "Santos/SP", "Fluminense/RJ", "Vitória/BA"
+            ]
+        };
+        
+        // Estado da aplicação
+        const AppState = {
+            bets: Array(APP_DATA.matches.length).fill(null),
+            
+            // Verifica se um time tem logo
+            hasLogo: function(teamName) {
+                return APP_DATA.teamsWithLogos.includes(teamName);
+            },
+            
+            // Obtém o logo ou um placeholder
+            getLogoOrPlaceholder: function(teamName) {
+                if (this.hasLogo(teamName)) {
+                    return `<img src="${teamName.replace(/\//g, '-')}.png" 
+                             alt="${teamName}" 
+                             class="team-logo" 
+                             onerror="this.src='semlogo.png'">`;
+                }
+                return '<img class="team-logo" src="semlogo.png">';
+            },
+            
+            // Renderiza todos os jogos
+            renderMatches: function() {
+                const matchesContainer = document.getElementById('matches');
+                let html = '';
+                
+                APP_DATA.matches.forEach((match, index) => {
+                    const homeLogo = this.getLogoOrPlaceholder(match.home);
+                    const awayLogo = this.getLogoOrPlaceholder(match.away);
+                    
+                    html += `
+                        <div class="mb-3">
+                            <div class="text-xs text-gray-500 mb-1 pl-1">JOGO ${index + 1}</div>
+                            <div class="flex">
+                                <div onclick="AppState.selectBet(${index}, '1')" 
+                                     class="bet-option ${this.bets[index] === '1' ? 'selected' : ''}">
+                                    ${homeLogo}
+                                    <span class="team-name text-xs text-gray-600">${match.home}</span>
+                                </div>
+                                
+                                <div onclick="AppState.selectBet(${index}, 'X')" 
+                                     class="bet-option ${this.bets[index] === 'X' ? 'selected' : ''}">
+                                    <img class="x-logo" src="x.png" alt="Empate">
+                                    <span class="text-xs text-gray-600">Empate</span>
+                                </div>
+                                
+                                <div onclick="AppState.selectBet(${index}, '2')" 
+                                     class="bet-option ${this.bets[index] === '2' ? 'selected' : ''}">
+                                    ${awayLogo}
+                                    <span class="team-name text-xs text-gray-600">${match.away}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                
+                matchesContainer.innerHTML = html;
+                this.updateSaveButton();
+            },
+            
+            // Seleciona uma aposta
+            selectBet: function(matchIndex, betType) {
+                this.bets[matchIndex] = betType;
+                this.renderMatches();
+            },
+            
+            // Atualiza o estado do botão de salvar
+            updateSaveButton: function() {
+                const saveBtn = document.getElementById('save-btn');
+                const allBetsMade = this.bets.every(bet => bet !== null);
+                
+                saveBtn.disabled = !allBetsMade;
+                saveBtn.className = allBetsMade ? 
+                    'w-full bg-red-600 text-white font-semibold py-3 rounded text-sm uppercase tracking-wider' :
+                    'w-full bg-gray-600 text-white font-semibold py-3 rounded text-sm uppercase tracking-wider';
+            },
+            
+            // Formata a mensagem de confirmação
+            formatConfirmationMessage: function() {
+                return `👉 O seu bilhete foi salvo com sucesso, ${UserData.firstName}! Você será notificado dos resultados por aqui, ok? Segue abaixo o seu bilhete:\n\n${this.formatBetsMessage()}`;
+            },
+            
+            // Formata os palpites para mensagem
+            formatBetsMessage: function() {
+                const now = new Date();
+                const bilheteId = now.getTime();
+                const dateStr = now.toLocaleString('pt-BR');
+                
+                let message = `📋 *Bilhete n:* ${bilheteId}\n`;
+                message += `👤 *Nome:* ${UserData.firstName}\n`;
+                message += `📅 *Data/Hora:* ${dateStr}\n\n`;
+                message += `🎯 *Palpites:*\n\n`;
+                
+                this.bets.forEach((bet, index) => {
+                    const match = APP_DATA.matches[index];
+                    //const emoji = bet === '1' ? '🏠' : (bet === 'X' ? '⚖️' : '🚌');
+                    const choice = bet === '1' ? 'Casa' : (bet === 'X' ? 'Empate' : 'Fora');
+                    
+                    message += `*Jogo ${index + 1} -  ${match.home} x ${match.away}*\n`;
+                    message += `*Escolha* 👉 ${choice}\n\n`;
+                });
+                
+                return message;
+            },
+            
+            // Mostra o loading
+            showLoading: function() {
+                document.getElementById('loading-overlay').style.display = 'flex';
+            },
+            
+            // Esconde o loading
+            hideLoading: function() {
+                document.getElementById('loading-overlay').style.display = 'none';
+            },
+            
+            // Envia mensagem via API do Telegram
+            sendTelegramMessage: function(text, callback) {
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${UserData.chatId}&text=${encodeURIComponent(text)}&parse_mode=Markdown`;
+                
+                // Usando fetch com tratamento de erro
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Erro ao enviar mensagem');
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (callback) callback(true);
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        if (callback) callback(false);
+                    });
+            },
+            
+            // Salva as apostas
+            saveBets: function() {
+                if (this.bets.some(bet => bet === null)) {
+                    alert('Complete todos os palpites!');
+                    return;
+                }
+                
+                this.showLoading();
+                const fullMessage = this.formatConfirmationMessage();
+                
+                if (UserData.isTelegram) {
+                    this.sendTelegramMessage(fullMessage, (success) => {
+                        this.hideLoading();
+                        if (success) {
+                            alert('Bilhete registrado com sucesso! Confira o chat.');
+                            Telegram.WebApp.close();
+                        } else {
+                            alert('Erro ao enviar bilhete. Tente novamente.');
+                        }
+                    });
+                } else {
+                    // Modo de desenvolvimento
+                    console.log('Mensagem que seria enviada:', fullMessage);
+                    console.log('URL da API:', `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${UserData.chatId}&text=${encodeURIComponent(fullMessage)}&parse_mode=Markdown`);
+                    
+                    setTimeout(() => {
+                        this.hideLoading();
+                        alert('Bilhete registrado com sucesso! (Modo desenvolvimento)');
+                    }, 1500);
+                }
+            },
+            
+            // Inicializa a aplicação
+            init: function() {
+                UserData.init();
+                this.renderMatches();
+                document.getElementById('save-btn').addEventListener('click', () => this.saveBets());
+            }
+        };
+        
+        // Inicializa quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', () => AppState.init());
+    </script>
+</body>
+</html>
 
